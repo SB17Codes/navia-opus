@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface MissionTableProps {
   clientId: Id<"users"> | undefined;
@@ -39,6 +40,7 @@ const statusColors: Record<string, string> = {
 };
 
 export function MissionTable({ clientId, limit }: MissionTableProps) {
+  const router = useRouter();
   const missions = useQuery(
     api.missions.getByClient,
     clientId ? { clientId } : "skip"
@@ -81,7 +83,11 @@ export function MissionTable({ clientId, limit }: MissionTableProps) {
       </TableHeader>
       <TableBody>
         {displayMissions?.map((mission) => (
-          <TableRow key={mission._id}>
+          <TableRow 
+            key={mission._id} 
+            className="cursor-pointer hover:bg-muted/50"
+            onClick={() => router.push(`/dashboard/missions/${mission._id}`)}
+          >
             <TableCell className="font-medium">
               {mission.passengerName}
             </TableCell>
@@ -98,7 +104,7 @@ export function MissionTable({ clientId, limit }: MissionTableProps) {
                 {mission.status}
               </Badge>
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">

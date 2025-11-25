@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, UserCheck } from "lucide-react";
 
 interface CreateMissionDialogProps {
   clientId: Id<"users"> | undefined;
@@ -33,7 +33,9 @@ interface CreateMissionDialogProps {
 export function CreateMissionDialog({ clientId }: CreateMissionDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<string>("");
   const createMission = useMutation(api.missions.create);
+  const availableAgents = useQuery(api.users.getAvailableAgents);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,6 +51,7 @@ export function CreateMissionDialog({ clientId }: CreateMissionDialogProps) {
     try {
       await createMission({
         clientId,
+        agentId: selectedAgent && selectedAgent !== "unassigned" ? (selectedAgent as Id<"users">) : undefined,
         passengerName: formData.get("passengerName") as string,
         flightNumber: formData.get("flightNumber") as string,
         scheduledAt,
@@ -58,6 +61,7 @@ export function CreateMissionDialog({ clientId }: CreateMissionDialogProps) {
         notes: (formData.get("notes") as string) || undefined,
       });
       setOpen(false);
+      setSelectedAgent("");
     } catch (error) {
       console.error("Failed to create mission:", error);
     } finally {
@@ -136,6 +140,30 @@ export function CreateMissionDialog({ clientId }: CreateMissionDialogProps) {
                   <SelectItem value="Group">Group</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="agent">Assign Agent</Label>
+              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an agent (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">
+                    <span className="text-muted-foreground">Unassigned</span>
+                  </SelectItem>
+                  {availableAgents?.map((agent) => (
+                    <SelectItem key={agent._id} value={agent._id}>
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-green-500" />
+                        <span>{agent.name || agent.email}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                You can assign an agent now or later
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="pickupLocation">Pickup Location *</Label>

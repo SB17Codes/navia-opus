@@ -37,6 +37,7 @@ export const getById = query({
 export const create = mutation({
   args: {
     clientId: v.id("users"),
+    agentId: v.optional(v.id("users")),
     passengerName: v.string(),
     flightNumber: v.string(),
     scheduledAt: v.number(),
