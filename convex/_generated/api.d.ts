@@ -12,6 +12,7 @@ import type * as http from "../http.js";
 import type * as locationLogs from "../locationLogs.js";
 import type * as missionEvents from "../missionEvents.js";
 import type * as missions from "../missions.js";
+import type * as rateCards from "../rateCards.js";
 import type * as users from "../users.js";
 
 import type {
@@ -25,6 +26,7 @@ declare const fullApi: ApiFromModules<{
   locationLogs: typeof locationLogs;
   missionEvents: typeof missionEvents;
   missions: typeof missions;
+  rateCards: typeof rateCards;
   users: typeof users;
 }>;
 

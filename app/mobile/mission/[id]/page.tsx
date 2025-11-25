@@ -86,7 +86,7 @@ export default function MissionDetailPage({
   useWakeLock(isActive);
 
   // Location tracking with throttling
-  const { location, error: locationError } = useLocationTracking({
+  const { location, error: locationError, permissionState, requestPermission } = useLocationTracking({
     enabled: isActive,
     minDistance: 20,
     minInterval: 30000,
@@ -260,17 +260,40 @@ export default function MissionDetailPage({
 
         {/* Tracking status */}
         {isActive && (
-          <Card className="border-primary/50 bg-primary/5">
+          <Card className={permissionState === "denied" ? "border-destructive/50 bg-destructive/5" : "border-primary/50 bg-primary/5"}>
             <CardContent className="py-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">GPS Tracking</span>
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className={`h-2 w-2 rounded-full ${location ? "bg-green-500" : "bg-yellow-500"} animate-pulse`}
-                  />
-                  {location ? "Active" : locationError || "Acquiring..."}
-                </span>
-              </div>
+              {permissionState === "denied" ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-destructive font-medium">Location Permission Denied</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Please enable location access in your browser settings to track this mission.
+                  </p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={requestPermission}
+                    className="w-full mt-2"
+                  >
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Try Again
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">GPS Tracking</span>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={`h-2 w-2 rounded-full ${location ? "bg-green-500" : "bg-yellow-500"} animate-pulse`}
+                    />
+                    {location ? "Active" : locationError || "Acquiring..."}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

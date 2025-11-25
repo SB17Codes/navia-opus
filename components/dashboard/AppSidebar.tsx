@@ -29,6 +29,7 @@ import {
   LogOut,
   ChevronUp,
   Plane,
+  Euro,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,6 +49,11 @@ const menuItems = [
     title: "Agents",
     url: "/dashboard/agents",
     icon: Users,
+  },
+  {
+    title: "Pricing",
+    url: "/dashboard/pricing",
+    icon: Euro,
   },
   {
     title: "Settings",

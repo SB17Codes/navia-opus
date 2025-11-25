@@ -176,7 +176,7 @@ export default function MissionDetailPage() {
             <div>
               <h2 className="text-2xl font-bold">{mission.passengerName}</h2>
               <p className="text-muted-foreground">
-                {mission.flightNumber} • {format(new Date(mission.scheduledAt), "PPP 'at' p")}
+                {mission.flightNumber || mission.trainNumber || mission.shipName || "Transfer"} • {format(new Date(mission.scheduledAt), "PPP 'at' p")}
               </p>
             </div>
           </div>
@@ -249,16 +249,41 @@ export default function MissionDetailPage() {
                 <div>
                   <p className="text-sm font-medium">Passenger</p>
                   <p className="text-sm text-muted-foreground">{mission.passengerName}</p>
+                  {mission.passengerCount && mission.passengerCount > 1 && (
+                    <p className="text-xs text-muted-foreground">({mission.passengerCount} passengers)</p>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-start gap-3">
-                <Plane className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Flight</p>
-                  <p className="text-sm text-muted-foreground">{mission.flightNumber}</p>
+              {mission.flightNumber && (
+                <div className="flex items-start gap-3">
+                  <Plane className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Flight</p>
+                    <p className="text-sm text-muted-foreground">{mission.flightNumber}</p>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {mission.trainNumber && (
+                <div className="flex items-start gap-3">
+                  <Plane className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Train</p>
+                    <p className="text-sm text-muted-foreground">{mission.trainNumber}</p>
+                  </div>
+                </div>
+              )}
+
+              {mission.shipName && (
+                <div className="flex items-start gap-3">
+                  <Plane className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Ship/Cruise</p>
+                    <p className="text-sm text-muted-foreground">{mission.shipName}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start gap-3">
                 <Clock className="mt-0.5 h-5 w-5 text-muted-foreground" />

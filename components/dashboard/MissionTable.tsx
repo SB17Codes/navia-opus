@@ -74,7 +74,7 @@ export function MissionTable({ clientId, limit }: MissionTableProps) {
       <TableHeader>
         <TableRow>
           <TableHead>Passenger</TableHead>
-          <TableHead>Flight</TableHead>
+          <TableHead>Transport</TableHead>
           <TableHead>Scheduled</TableHead>
           <TableHead>Service</TableHead>
           <TableHead>Status</TableHead>
@@ -91,7 +91,9 @@ export function MissionTable({ clientId, limit }: MissionTableProps) {
             <TableCell className="font-medium">
               {mission.passengerName}
             </TableCell>
-            <TableCell className="font-mono">{mission.flightNumber}</TableCell>
+            <TableCell className="font-mono">
+              {mission.flightNumber || mission.trainNumber || mission.shipName || "-"}
+            </TableCell>
             <TableCell>
               {format(new Date(mission.scheduledAt), "MMM d, HH:mm")}
             </TableCell>

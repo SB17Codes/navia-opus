@@ -1,6 +1,36 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Service and location types for validation
+const serviceTypes = v.union(
+  v.literal("Meet & Greet"),
+  v.literal("VIP"),
+  v.literal("Group"),
+  v.literal("Transfer"),
+  v.literal("Train Station"),
+  v.literal("Port")
+);
+
+const locationTypes = v.union(
+  v.literal("Airport"),
+  v.literal("Train Station"),
+  v.literal("Port"),
+  v.literal("Address")
+);
+
+const statusTypes = v.union(
+  v.literal("Scheduled"),
+  v.literal("Active"),
+  v.literal("Arrived at Airport"),
+  v.literal("Arrived at Station"),
+  v.literal("Arrived at Port"),
+  v.literal("Passenger Met"),
+  v.literal("Luggage Collected"),
+  v.literal("In Transit"),
+  v.literal("Complete"),
+  v.literal("Cancelled")
+);
+
 // Get missions for a client (with multi-tenancy enforcement)
 export const getByClient = query({
   args: { clientId: v.id("users") },
@@ -38,16 +68,36 @@ export const create = mutation({
   args: {
     clientId: v.id("users"),
     agentId: v.optional(v.id("users")),
+    
+    // Passenger info
     passengerName: v.string(),
-    flightNumber: v.string(),
+    passengerPhone: v.optional(v.string()),
+    passengerEmail: v.optional(v.string()),
+    passengerCount: v.optional(v.number()),
+    
+    // Group leader (for groups)
+    groupLeaderName: v.optional(v.string()),
+    groupLeaderPhone: v.optional(v.string()),
+    groupLeaderEmail: v.optional(v.string()),
+    
+    // Transport info
+    flightNumber: v.optional(v.string()),
+    trainNumber: v.optional(v.string()),
+    shipName: v.optional(v.string()),
+    
+    // Schedule & locations
     scheduledAt: v.number(),
     pickupLocation: v.string(),
     dropoffLocation: v.optional(v.string()),
-    serviceType: v.union(
-      v.literal("Meet & Greet"),
-      v.literal("VIP"),
-      v.literal("Group")
-    ),
+    
+    // Service config
+    serviceType: serviceTypes,
+    locationType: locationTypes,
+    
+    // Pricing
+    quotedPrice: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -65,15 +115,7 @@ export const create = mutation({
 export const updateStatus = mutation({
   args: {
     missionId: v.id("missions"),
-    status: v.union(
-      v.literal("Scheduled"),
-      v.literal("Active"),
-      v.literal("Arrived at Airport"),
-      v.literal("Passenger Met"),
-      v.literal("Luggage Collected"),
-      v.literal("Complete"),
-      v.literal("Cancelled")
-    ),
+    status: statusTypes,
     agentId: v.id("users"),
   },
   handler: async (ctx, args) => {
@@ -149,5 +191,90 @@ export const getActiveMissions = query({
     );
 
     return missionsWithLocation;
+  },
+});
+
+// Generate upload URL for mission attachments
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Add attachment to mission
+export const addAttachment = mutation({
+  args: {
+    missionId: v.id("missions"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    fileType: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const mission = await ctx.db.get(args.missionId);
+    if (!mission) throw new Error("Mission not found");
+
+    const newAttachment = {
+      storageId: args.storageId,
+      fileName: args.fileName,
+      fileType: args.fileType,
+      uploadedAt: Date.now(),
+    };
+
+    const currentAttachments = mission.attachments || [];
+    
+    await ctx.db.patch(args.missionId, {
+      attachments: [...currentAttachments, newAttachment],
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// Remove attachment from mission
+export const removeAttachment = mutation({
+  args: {
+    missionId: v.id("missions"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const mission = await ctx.db.get(args.missionId);
+    if (!mission) throw new Error("Mission not found");
+
+    const currentAttachments = mission.attachments || [];
+    const filteredAttachments = currentAttachments.filter(
+      (a) => a.storageId !== args.storageId
+    );
+
+    // Delete the file from storage
+    await ctx.storage.delete(args.storageId);
+
+    await ctx.db.patch(args.missionId, {
+      attachments: filteredAttachments,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// Get attachment URLs for a mission
+export const getAttachmentUrls = query({
+  args: { missionId: v.id("missions") },
+  handler: async (ctx, args) => {
+    const mission = await ctx.db.get(args.missionId);
+    if (!mission) return [];
+
+    const attachments = mission.attachments || [];
+    
+    const attachmentsWithUrls = await Promise.all(
+      attachments.map(async (attachment) => ({
+        ...attachment,
+        url: await ctx.storage.getUrl(attachment.storageId),
+      }))
+    );
+
+    return attachmentsWithUrls;
   },
 });
