@@ -9,7 +9,7 @@ interface LocationState {
   timestamp: number;
 }
 
-type PermissionState = "prompt" | "granted" | "denied" | "unavailable";
+type PermissionState = "prompt" | "granted" | "denied" | "unavailable" | "requesting";
 
 interface UseLocationTrackingOptions {
   enabled: boolean;
@@ -58,38 +58,13 @@ export function useLocationTracking({
 
   const lastSentLocation = useRef<LocationState | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
 
   // Check geolocation support once
   const isSupported = useMemo(
     () => typeof navigator !== "undefined" && "geolocation" in navigator,
     []
   );
-
-  // Check permission status on mount
-  useEffect(() => {
-    if (!isSupported) {
-      setPermissionState("unavailable");
-      return;
-    }
-
-    // Check if the Permissions API is available
-    if (navigator.permissions && navigator.permissions.query) {
-      navigator.permissions
-        .query({ name: "geolocation" })
-        .then((result) => {
-          setPermissionState(result.state as PermissionState);
-          
-          // Listen for permission changes
-          result.onchange = () => {
-            setPermissionState(result.state as PermissionState);
-          };
-        })
-        .catch(() => {
-          // Permissions API not supported, we'll check on request
-          setPermissionState("prompt");
-        });
-    }
-  }, [isSupported]);
 
   const shouldSendUpdate = useCallback(
     (newLocation: LocationState): boolean => {
@@ -122,6 +97,7 @@ export function useLocationTracking({
       setLocation(newLocation);
       setError(null);
       setPermissionState("granted");
+      retryCountRef.current = 0;
 
       if (shouldSendUpdate(newLocation)) {
         lastSentLocation.current = newLocation;
@@ -131,51 +107,69 @@ export function useLocationTracking({
     [shouldSendUpdate, onLocationUpdate]
   );
 
-  const handleError = useCallback((error: GeolocationPositionError) => {
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        setError("Location permission denied. Please enable in your browser settings.");
+  const handleError = useCallback((geoError: GeolocationPositionError) => {
+    console.log("Geolocation error:", geoError.code, geoError.message);
+    
+    switch (geoError.code) {
+      case geoError.PERMISSION_DENIED:
+        // On Safari, PERMISSION_DENIED can be temporary or a real denial
+        // Don't permanently block - allow retry
+        setError("Location access needed. Please allow location access and try again.");
         setPermissionState("denied");
         break;
-      case error.POSITION_UNAVAILABLE:
-        setError("Location unavailable. Please try again.");
+      case geoError.POSITION_UNAVAILABLE:
+        setError("Location unavailable. Please check your device's location settings.");
+        // Don't change permission state - this is a temporary error
         break;
-      case error.TIMEOUT:
-        setError("Location request timed out. Please try again.");
+      case geoError.TIMEOUT:
+        setError("Location request timed out. Retrying...");
+        // Don't change permission state - this is a temporary error
         break;
       default:
-        setError("Failed to get location.");
+        setError(`Location error: ${geoError.message}`);
     }
   }, []);
 
-  // Request permission manually
+  // Request permission manually - Safari compatible
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
       setError("Geolocation is not supported by your browser");
       return false;
     }
 
+    // Reset state before requesting
+    setError(null);
+    setPermissionState("requesting");
+    retryCountRef.current += 1;
+
     return new Promise((resolve) => {
+      // Clear any existing watch
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           handlePosition(position);
           resolve(true);
         },
-        (error) => {
-          handleError(error);
+        (geoError) => {
+          handleError(geoError);
           resolve(false);
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000, // Longer timeout for Safari
           maximumAge: 0,
         }
       );
     });
   }, [isSupported, handlePosition, handleError]);
 
+  // Start watching when enabled - don't check permissionState to allow Safari to prompt
   useEffect(() => {
-    if (!enabled || !isSupported || permissionState === "denied") {
+    if (!enabled || !isSupported) {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
@@ -183,18 +177,22 @@ export function useLocationTracking({
       return;
     }
 
-    // Only start watching if permission was granted
-    if (permissionState === "granted" || permissionState === "prompt") {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        handlePosition,
-        handleError,
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 5000,
-        }
-      );
+    // Don't start watching if we know permission is denied
+    // But DO start if it's "prompt" - Safari will show the permission dialog
+    if (permissionState === "denied") {
+      return;
     }
+
+    // Start watching - this will trigger permission prompt on first use
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      handlePosition,
+      handleError,
+      {
+        enableHighAccuracy: true,
+        timeout: 15000, // Longer timeout for Safari
+        maximumAge: 5000,
+      }
+    );
 
     return () => {
       if (watchIdRef.current !== null) {
@@ -207,7 +205,7 @@ export function useLocationTracking({
   return {
     location,
     error: !isSupported ? "Geolocation is not supported" : error,
-    isTracking: enabled && isSupported && permissionState === "granted",
+    isTracking: enabled && isSupported && (permissionState === "granted" || permissionState === "requesting"),
     permissionState,
     requestPermission,
   };

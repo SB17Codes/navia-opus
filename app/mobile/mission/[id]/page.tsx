@@ -265,23 +265,31 @@ export default function MissionDetailPage({
               {permissionState === "denied" ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-destructive font-medium">Location Permission Denied</span>
+                    <span className="text-destructive font-medium">Location Access Needed</span>
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-red-500" />
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Please enable location access in your browser settings to track this mission.
+                    Tap the button below to enable location tracking. On Safari, make sure to allow location access when prompted.
                   </p>
                   <Button 
                     size="sm" 
-                    variant="outline" 
+                    variant="default" 
                     onClick={requestPermission}
                     className="w-full mt-2"
                   >
                     <MapPin className="mr-2 h-4 w-4" />
-                    Try Again
+                    Enable Location
                   </Button>
+                </div>
+              ) : permissionState === "requesting" ? (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">GPS Tracking</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                    Requesting access...
+                  </span>
                 </div>
               ) : (
                 <div className="flex items-center justify-between text-sm">
